@@ -1,0 +1,7 @@
+{
+  "name": "Safe Space - Your Mental Sanctuary",
+  "description": "A modern, emotionally safe mental health platform for young adults in Egypt, providing immediate, stigma-free support, mood tracking, and a compassionate AI 'Safe Friend'.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
