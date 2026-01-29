@@ -4,10 +4,12 @@ import { ChatMessage } from '../types';
 import { getSafeResponse } from '../services/geminiService';
 
 const SafeChat: React.FC = () => {
+  const initialGreeting = "Hello. I'm your Safe Friend. Whether you're feeling overwhelmed, stressed, or just need someone to listen, I'm here. How is your heart feeling today?";
+  
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'model',
-      text: "Hello. I'm your Safe Friend. Whether you're feeling overwhelmed, stressed, or just need someone to listen, I'm here. How is your heart feeling today?",
+      text: initialGreeting,
       timestamp: new Date()
     }
   ]);
@@ -22,23 +24,47 @@ const SafeChat: React.FC = () => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMsg: ChatMessage = { role: 'user', text: input, timestamp: new Date() };
+    const userText = input.trim();
+    const userMsg: ChatMessage = { role: 'user', text: userText, timestamp: new Date() };
+    
+    // تحديث الواجهة برسالة المستخدم فوراً
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
 
-    const history = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
-    history.push({ role: 'user', parts: [{ text: input }] });
+    try {
+      // بناء التاريخ: استبعاد رسالة الترحيب الأولى إذا كانت هي البداية لأن Gemini يتطلب البدء بـ 'user'
+      // وفلترة الرسائل للتأكد من الالتزام بتنسيق API
+      const historyForApi = messages
+        .filter((m, idx) => !(idx === 0 && m.role === 'model')) // حذف الترحيب الافتراضي من السياق التقني
+        .map(m => ({ 
+          role: m.role, 
+          parts: [{ text: m.text }] 
+        }));
 
-    const aiResponse = await getSafeResponse(history);
-    const aiMsg: ChatMessage = { 
-      role: 'model', 
-      text: aiResponse || "I'm holding space for you. Can you tell me more about that?", 
-      timestamp: new Date() 
-    };
+      // إضافة الرسالة الحالية للتاريخ المرسل
+      historyForApi.push({ role: 'user', parts: [{ text: userText }] });
 
-    setMessages(prev => [...prev, aiMsg]);
-    setIsLoading(false);
+      const aiResponse = await getSafeResponse(historyForApi);
+      
+      const aiMsg: ChatMessage = { 
+        role: 'model', 
+        text: aiResponse || "I'm here and I'm listening. Please, tell me more.", 
+        timestamp: new Date() 
+      };
+
+      setMessages(prev => [...prev, aiMsg]);
+    } catch (error) {
+      console.error("Chat Error:", error);
+      const errorMsg: ChatMessage = {
+        role: 'model',
+        text: "I'm sorry, I'm having a bit of trouble connecting to my thoughts. Could you try saying that again?",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -51,11 +77,11 @@ const SafeChat: React.FC = () => {
         <span className="text-blue-200 text-xs">Always Encrypted</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 space-y-6">
+      <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] px-6 py-5 rounded-[2rem] ${msg.role === 'user' ? 'bg-[#F2548B] text-white rounded-tr-none' : 'bg-slate-50 text-slate-800 rounded-tl-none border border-slate-100'}`}>
-              <p className="text-lg leading-relaxed">{msg.text}</p>
+              <p className="text-lg leading-relaxed whitespace-pre-wrap">{msg.text}</p>
             </div>
           </div>
         ))}
@@ -63,8 +89,8 @@ const SafeChat: React.FC = () => {
           <div className="flex justify-start">
             <div className="bg-slate-50 px-6 py-4 rounded-[2rem] rounded-tl-none flex space-x-2">
               <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce delay-100"></div>
-              <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce delay-200"></div>
+              <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce [animation-delay:0.4s]"></div>
             </div>
           </div>
         )}
@@ -83,7 +109,7 @@ const SafeChat: React.FC = () => {
           <button 
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="absolute right-2 p-4 bg-[#114B9A] text-white rounded-full hover:bg-[#F2548B] transition-all disabled:opacity-30"
+            className="absolute right-2 p-4 bg-[#114B9A] text-white rounded-full hover:bg-[#F2548B] transition-all disabled:opacity-30 disabled:scale-95"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 12h14M12 5l7 7-7 7" /></svg>
           </button>
